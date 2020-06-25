@@ -1,0 +1,131 @@
+<!doctype html>
+<body class="no-js" lang="">
+
+<head>
+  <meta charset="utf-8">
+  <title>Flask-socketio Connect 4</title>
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta property="og:title" content="">
+  <meta property="og:type" content="">
+  <meta property="og:url" content="">
+  <meta property="og:image" content="">
+
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="apple-touch-icon" href="icon.png">
+
+  <link rel="stylesheet" href="css/normalize.css">
+  <link rel="stylesheet" href="css/main.css">
+
+  <script src="js/misc/jquery-3.5.1.js"></script>
+  <script src="js/connect/socket.io.js"></script>
+  <script src="js/draw/draw.js"></script>
+  <script src="js/connect/main.js"></script>
+  <script src="js/draw/paperjs-v0.12.8/dist/paper-full.js"></script>
+
+  <script>
+
+    var matrix;
+    var socket;
+    var columns = [];
+
+     function draw_board(json_str, init=false) {
+       if (init){
+         info_obj = JSON.parse(json_str)
+         x = info_obj.width
+         y = info_obj.height
+         radius = 50
+         for (i = 0; i < info_obj.matrix.length; i++) {
+           for (j = 0; j < info_obj.matrix[i].length; j++)
+           {
+             var circlePath = new paper.Path.Circle({
+               center: [150 + i * 100, 150 + j * 100],
+               radius: 50
+             });
+             circlePath.strokeColor = 'black';
+             circlePath.fillColor = 'black';
+           }
+           var rectangle = new paper.Rectangle(new paper.Point(100 + i * 100, 100), new paper.Point(100 + i * 100 + radius * 2, 100 + radius * 2 * y));
+           var column_path = new paper.Path.Rectangle(rectangle);
+           column_path.fillColor = 'red';
+           column_path.num = i
+           column_path.onClick = function(event) {
+             console.log(this.num);
+             socket.emit('move', this.num);
+           }
+           column_path.onMouseEnter = function(event) {
+             this.opacity = 0.2;
+           }
+           column_path.onMouseLeave = function(event) {
+             this.opacity = 0;
+           }
+           columns.push(column_path)
+         }
+         console.log('drawing board')
+       }
+       draw_matrix(info_obj.matrix)
+     }
+
+    function draw_matrix(matrix) {
+      for (i = 0; i < matrix.length; i++) {
+        for (j = 0; j < matrix[i].length; j++)
+        {
+          if (matrix[i][j] != -1)
+          {
+            var circlePath = new paper.Path.Circle({
+              center: [150 + j * 100, 150 + i * 100],
+              radius: 48
+            });
+            if (matrix[i][j] == 0) {
+              circlePath.strokeColor = 'blue';
+              circlePath.fillColor = 'blue';
+            }
+            else {
+              circlePath.strokeColor = 'red';
+              circlePath.fillColor = 'red';
+            }
+          }
+        }
+      }
+      // paper.view.draw();
+    }
+
+    $(document).ready(function () {
+
+      var canvas = document.getElementById('board_canvas');
+      paper.setup(canvas);
+      // canvas.style.background = "black"
+      // draw_board()
+
+      port = 63343
+      socket = io.connect('http://' + document.domain + ':' + port + '/test');
+
+      socket.on('room_data_response', function (str) {
+        draw_board(str, true)
+      });
+
+      $('#test_btn').click(function (event) {
+        socket.emit('request_join');
+        return false;
+      });
+
+      // setInterval(items_data_request, 1000);
+    });
+  </script>
+
+  <meta name="theme-color" content="#fafafa">
+</head>
+
+
+<script src="js/misc/vendor/modernizr-3.11.2.min.js"></script>
+<script src="js/misc/plugins.js"></script>
+
+<canvas id="board_canvas" resize stats></canvas>
+
+<input type="text" id="test_text"/>
+<input type="button" id="test_btn"/>
+<script src="https://www.google-analytics.com/analytics.js" async></script>
+</body>
+
+</html>
