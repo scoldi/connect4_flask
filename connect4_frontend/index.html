@@ -29,10 +29,13 @@
     var matrix;
     var socket;
     var columns = [];
+    var my_num;
+    var spectator_mode = false;
+    var turn_player = 0;
+    var init = true
 
-     function draw_board(json_str, init=false) {
+     function draw_board(info_obj) {
        if (init){
-         info_obj = JSON.parse(json_str)
          x = info_obj.width
          y = info_obj.height
          radius = 50
@@ -49,9 +52,10 @@
            var rectangle = new paper.Rectangle(new paper.Point(100 + i * 100, 100), new paper.Point(100 + i * 100 + radius * 2, 100 + radius * 2 * y));
            var column_path = new paper.Path.Rectangle(rectangle);
            column_path.fillColor = 'red';
+           column_path.opacity = 0;
            column_path.num = i
            column_path.onClick = function(event) {
-             console.log(this.num);
+             console.log(this.num)
              socket.emit('move', this.num);
            }
            column_path.onMouseEnter = function(event) {
@@ -60,21 +64,24 @@
            column_path.onMouseLeave = function(event) {
              this.opacity = 0;
            }
-           columns.push(column_path)
+           columns.push(column_path);
          }
-         console.log('drawing board')
+         console.log('drawing board');
+         init = false;
        }
        draw_matrix(info_obj.matrix)
      }
 
     function draw_matrix(matrix) {
+      console.log('drawing matrix')
+      // matrix_items.removeChildren();
       for (i = 0; i < matrix.length; i++) {
         for (j = 0; j < matrix[i].length; j++)
         {
           if (matrix[i][j] != -1)
           {
             var circlePath = new paper.Path.Circle({
-              center: [150 + j * 100, 150 + i * 100],
+              center: [150 + i * 100, 150 + j * 100],
               radius: 48
             });
             if (matrix[i][j] == 0) {
@@ -88,7 +95,6 @@
           }
         }
       }
-      // paper.view.draw();
     }
 
     $(document).ready(function () {
@@ -102,7 +108,18 @@
       socket = io.connect('http://' + document.domain + ':' + port + '/test');
 
       socket.on('room_data_response', function (str) {
-        draw_board(str, true)
+        var info_obj = JSON.parse(str);
+        draw_board(info_obj);
+        if (info_obj.player_num) {
+          my_num = info_obj.player_num
+          console.log('my num', my_num)
+        }
+        else
+        {
+          spectator_mode = true
+          console.log('spectator mode')
+        }
+        turn_player = info_obj.turn_player;
       });
 
       $('#test_btn').click(function (event) {
