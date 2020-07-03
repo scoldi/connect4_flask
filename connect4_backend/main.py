@@ -24,14 +24,8 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 
 @app.route('/')
-@socketio.on('matrix_update_request', namespace='/test')
-def test_message():
-    message = str(time.time())
-    emit('matrix_update_response', message, broadcast=True)
-
-
-@socketio.on('move', namespace='/test')
-def move(column):
+@socketio.on('move', namespace='/')
+def on_move(column):
     if gameroom.is_player(request.sid):
         gameroom.move(request.sid, column)
         print(request.sid)
@@ -39,16 +33,16 @@ def move(column):
     emit('room_data_response', gameroom.get_data(), broadcast=True)
 
 
-@socketio.on('connect', namespace='/test')
-def test_connect():
+@socketio.on('connect', namespace='/')
+def on_connect():
     print('Client connected:', request.sid)
     gameroom.add_user(request.sid)
     data = gameroom.get_data(sid=request.sid)
     emit('room_data_response', data)
 
 
-@socketio.on('disconnect', namespace='/test')
-def test_disconnect():
+@socketio.on('disconnect', namespace='/')
+def on_disconnect():
     gameroom.remove_user(request.sid)
     print('Client disconnected:', request.sid)
 

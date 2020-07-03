@@ -12,7 +12,6 @@
   <meta property="og:url" content="">
   <meta property="og:image" content="">
 
-  <link rel="manifest" href="site.webmanifest">
   <link rel="apple-touch-icon" href="icon.png">
 
   <link rel="stylesheet" href="css/normalize.css">
@@ -30,49 +29,90 @@
     var socket;
     var columns = [];
     var my_num;
+    var ended = false;
     var spectator_mode = false;
     var turn_player = 0;
-    var init = true
+    var init = true;
+    var games_in_row = 10
 
-     function draw_board(info_obj) {
-       if (init){
-         x = info_obj.width
-         y = info_obj.height
-         radius = 50
-         for (i = 0; i < info_obj.matrix.length; i++) {
-           for (j = 0; j < info_obj.matrix[i].length; j++)
-           {
-             var circlePath = new paper.Path.Circle({
-               center: [150 + i * 100, 150 + j * 100],
-               radius: 50
-             });
-             circlePath.strokeColor = 'black';
-             circlePath.fillColor = 'black';
-           }
-           var rectangle = new paper.Rectangle(new paper.Point(100 + i * 100, 100), new paper.Point(100 + i * 100 + radius * 2, 100 + radius * 2 * y));
-           var column_path = new paper.Path.Rectangle(rectangle);
-           column_path.fillColor = 'red';
-           column_path.opacity = 0;
-           column_path.num = i
-           column_path.onClick = function(event) {
-             console.log(this.num)
-             socket.emit('move', this.num);
-           }
-           column_path.onMouseEnter = function(event) {
-             this.opacity = 0.2;
-           }
-           column_path.onMouseLeave = function(event) {
-             this.opacity = 0;
-           }
-           columns.push(column_path);
-         }
-         console.log('drawing board');
-         init = false;
-       }
-       draw_matrix(info_obj.matrix)
-     }
+    function my_turn(){
+      return (turn_player == my_num)
+    }
 
-    function draw_matrix(matrix) {
+    function draw_all_boards(info_obj, games_in_row, canvas_width) {
+      let game_counter_total = 0;
+      let rows = 0;
+      while (game_counter_total < info_obj.length) {
+        let game_counter_row = 0;
+        let x_padding = canvas_width / (40 + games_in_row * 4);
+        let y_padding = canvas_width / (40 + games_in_row * 4);
+        let x_max = canvas_width;
+        let game_width = (x_max - games_in_row * x_padding * 2) / games_in_row ;
+        let game_height = game_width * 0.8;
+        while (game_counter_row < games_in_row){
+          let x_left = x_padding + game_counter_row * (game_width + x_padding * 2);
+          let x_right = x_left + game_width;
+          let y_top = y_padding + rows * (game_height + y_padding * 2);
+          let y_bottom = y_top + game_height;
+          console.log(info_obj[game_counter_total])
+          draw_board(info_obj[game_counter_total], x_left, x_right, y_top, y_bottom);
+          game_counter_row++;
+          game_counter_total++;
+        }
+        rows++;
+      }
+    }
+
+    function draw_board(info_obj, x_left, x_right, y_top, y_bottom) {
+
+      //if (init){
+        x = info_obj.width
+        y = info_obj.height
+        let width = x_right - x_left
+        let height = y_bottom - y_top
+        let x_padding = width / 30;
+        let y_padding = x_padding;
+        console.log(x_left)
+        radius = (width - 2 * (x - 1) * x_padding) / (2 * (x - 1))
+        for (i = 0; i < info_obj.matrix.length; i++) {
+          for (j = 0; j < info_obj.matrix[i].length; j++)
+          {
+            var circlePath = new paper.Path.Circle({
+              center: [x_left + i * (radius * 2 + x_padding * 2), y_top + j * (radius * 2 + y_padding * 2)],
+              radius: radius
+            });
+            circlePath.strokeColor = 'gray';
+            circlePath.fillColor = 'gray';
+          }
+          /* var rectangle = new paper.Rectangle(new paper.Point(100 + i * 100, 100), new paper.Point(100 + i * 100 + radius * 2, 100 + radius * 2 * y));
+          var column_path = new paper.Path.Rectangle(rectangle);
+          column_path.fillColor = 'red';
+          column_path.opacity = 0;
+          column_path.num = i
+          column_path.onClick = function(event) {
+            // console.log(this.num)
+            if (!spectator_mode & my_turn()){
+              socket.emit('move', this.num);
+            }
+          }
+          column_path.onMouseEnter = function(event) {
+            if (!spectator_mode & my_turn()){
+              this.opacity = 0.2;
+            }
+          }
+          column_path.onMouseLeave = function(event) {
+            this.opacity = 0;
+          }
+          columns.push(column_path);
+           */
+        }
+        console.log('drawing board');
+        init = false;
+      //}
+      // draw_matrix(info_obj.matrix, x_left, x_right, y_top, y_bottom)
+    }
+
+    function draw_matrix(matrix, x_left, x_right, y_top, y_bottom, radius) {
       console.log('drawing matrix')
       // matrix_items.removeChildren();
       for (i = 0; i < matrix.length; i++) {
@@ -101,25 +141,34 @@
 
       var canvas = document.getElementById('board_canvas');
       paper.setup(canvas);
+      console.log(canvas.width)
+      console.log(canvas.height)
       // canvas.style.background = "black"
       // draw_board()
 
       port = 63343
-      socket = io.connect('http://' + document.domain + ':' + port + '/test');
+      socket = io.connect('http://' + document.domain + ':' + port + '/');
 
       socket.on('room_data_response', function (str) {
         var info_obj = JSON.parse(str);
-        draw_board(info_obj);
-        if (info_obj.player_num) {
+        //draw_board(info_obj);
+        draw_all_boards(info_obj, games_in_row, canvas.width);
+        if ('player_num' in info_obj) {
           my_num = info_obj.player_num
           console.log('my num', my_num)
         }
-        else
+        else if( typeof my_num == 'undefined' )
         {
           spectator_mode = true
           console.log('spectator mode')
         }
+        if ('winner' in info_obj & info_obj.winner != -1) {
+          ended = true
+          console.log('ended')
+          console.log('winner:', info_obj.winner)
+        }
         turn_player = info_obj.turn_player;
+        console.log(turn_player)
       });
 
       $('#test_btn').click(function (event) {
@@ -140,8 +189,9 @@
 
 <canvas id="board_canvas" resize stats></canvas>
 
-<input type="text" id="test_text"/>
+<!-- <input type="text" id="test_text"/>
 <input type="button" id="test_btn"/>
+-->
 <script src="https://www.google-analytics.com/analytics.js" async></script>
 </body>
 
