@@ -1,14 +1,19 @@
 from keras.optimizers import Adam
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout
+from keras.utils import to_categorical
+
 import random
 import numpy as np
+import uuid
 
-LOAD_WEIGHTS = True
+LOAD_WEIGHTS = False
 
 class DQNAgent(object):
 
-    def __init__(self):
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
         self.reward = 0
         self.gamma = 0.9
         self.short_memory = np.array([])
@@ -19,36 +24,20 @@ class DQNAgent(object):
             self.epsilon = 0
         else:
             self.model = self.network()
-            self.epsilon = 100
+            self.epsilon = 500
         self.actual = []
+        self.last_move = -1
         self.memory = []
+        self.sid = uuid.uuid4()
+        self.win = False
 
-    def get_state(self, game, tank, flag, castle):
-        state = [int(flag.tile.x < tank.tile.x),  #flag is in left direction
-                 int(flag.tile.x > tank.tile.x),  #flag is in right direction
-                 int(flag.tile.y > tank.tile.y),  #flag is in top direction
-                 int(flag.tile.y < tank.tile.y),  #flag is in bottom direction
-
-                 int(tank.tile.x - 1 < 0 or not game.grid[tank.tile.x-1, tank.tile.y].type in ('empty', 'castle_zone')),  # obstacle is in left direction
-                 int(tank.tile.x + 1 > game.grid_x - 1 or not game.grid[tank.tile.x+1, tank.tile.y].type in ('empty', 'castle_zone')),  # obstacle is in right direction
-                 int(tank.tile.y + 1 > game.grid_y - 1 or not game.grid[tank.tile.x, tank.tile.y+1].type in ('empty', 'castle_zone')),  # obstacle is in top direction
-                 int(tank.tile.y - 1 < 0 or not game.grid[tank.tile.x, tank.tile.y-1].type in ('empty', 'castle_zone')),  # obstacle is in bottom direction
-
-                 int(tank.has_flag and tank.flag == flag),  # flag is picked up
-
-                 int(castle.x < tank.tile.x),  # castle is in left direction
-                 int(castle.x > tank.tile.x),  # castle is in right direction
-                 int(castle.y > tank.tile.y),  # castle is in top direction
-                 int(castle.y < tank.tile.y)  # castle is in bottom direction
-                 ]
-
-        # state.extend(tank.last_move)  # last move: [up, left, down, right]
-
+    def get_state(self, game):
+        state = game.matrix.tolist()
         return np.asarray(state)
 
     def network(self, weights=None):
         model = Sequential()
-        model.add(Dense(output_dim=120, activation='relu', input_dim=13))
+        model.add(Dense(output_dim=120, activation='relu', input_dim=self.x * self.y))
         model.add(Dropout(0.15))
         model.add(Dense(output_dim=120, activation='relu'))
         model.add(Dropout(0.15))
@@ -63,8 +52,10 @@ class DQNAgent(object):
         return model
 
     def replay_new(self, memory):
+        self.win = False
         if len(memory) > 2000:
             minibatch = random.sample(memory, 2000)
+            memory = minibatch
         else:
             minibatch = memory
         for state, action, reward, next_state, defeat in minibatch:
@@ -75,31 +66,44 @@ class DQNAgent(object):
             target_f[0][np.argmax(action)] = target
             self.model.fit(np.array([state]), target_f, epochs=1, verbose=0)
 
-    def set_reward(self, game, tank):
+    def move_and_learn(self, game):
+        state_old = self.get_state(game)
+        success = False
+        while not success:
+            if random.randint(0, self.epsilon) < self.epsilon:
+                move = random.randint(0, self.x - 1)
+            else:
+                # predict action based on the old state
+                prediction = self.model.predict(state_old.reshape((1, self.x * self.y)))
+                move = np.argmax(prediction[0])
+            # add negative reward for wrong turns
+            success = game.move(self.sid, move)
+
+        state_new = self.get_state(game)
+        reward = self.set_reward(game)
+
+        # train short memory base on the new action and state
+        defeat = game.finished and not self.win
+        self.train_short_memory(state_old, move, reward, state_new, defeat)
+
+        # store the new data into a long term memory
+        self.remember(state_old, move, reward, state_new, defeat)
+
+    def set_reward(self, game):
         self.reward = 0
-        if (tank.tile.x, tank.tile.y) in list(tank.prev_tiles.queue):
-            self.reward = -2
-            print('Backtracking! reward: ', self.reward)
-        if tank.took_flag:
-            self.reward = 5
-            print('Took flag! reward: ', self.reward)
-        if game.ended and game.victory:
-            self.reward = 50
-            print('Delivered flag! reward: ', self.reward)
-        elif game.ended and not game.victory:
-            self.reward = -10
-            print('Crashed! reward: ', self.reward)
+        if game.finished and self.win:
+            self.reward = 10
         return self.reward
 
+
     def remember(self, state, action, reward, next_state, defeat):
-        print('remember', (state, action, reward, next_state, defeat))
         self.memory.append((state, action, reward, next_state, defeat))
         # print(len(self.memory))
 
     def train_short_memory(self, state, action, reward, next_state, defeat):
         target = reward
         if not defeat:
-            target = reward + self.gamma * np.amax(self.model.predict(next_state.reshape((1, 13)))[0])
-        target_f = self.model.predict(state.reshape((1, 13)))
+            target = reward + self.gamma * np.amax(self.model.predict(next_state.reshape((1, self.x * self.y)))[0])
+        target_f = self.model.predict(state.reshape((1, self.x * self.y)))
         target_f[0][np.argmax(action)] = target
-        self.model.fit(state.reshape((1, 13)), target_f, epochs=1, verbose=0)
+        self.model.fit(state.reshape((1, self.x * self.y)), target_f, epochs=1, verbose=0)

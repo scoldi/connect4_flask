@@ -1,6 +1,11 @@
 import numpy as np
 import uuid
 
+class InvalidTurnError(Exception):
+    print('invalid turn attempt')
+    pass
+
+
 class GameRoom:
 
     def __init__(self, width, height):
@@ -25,20 +30,18 @@ class GameRoom:
         #        [-1, -1, -1, -1, -1, -1],
         #        [-1, -1, -1, -1, -1, -1]])
 
-
     def move(self, sid, column):
         player_num = self.get_player_num(sid)
         print(player_num)
         try:
-            res = max(idx for idx, val in enumerate(self.matrix[column])
-                  if val == -1)
-        except:
-            # success = False
-            print('invalid turn')
-        self.matrix[column][res] = player_num
-        self.turn_num = self.turn_num + 1
-        self.turn_player = self.turn_num % 2
-        print(self.matrix)
+            res = max(idx for idx, val in enumerate(self.matrix[column]) if val == -1)
+            self.matrix[column][res] = player_num
+            self.turn_num = self.turn_num + 1
+            self.turn_player = self.turn_num % 2
+            print(self.matrix)
+            return True
+        except (InvalidTurnError, ValueError) as e:
+            return False
 
     def check_winner(self):
         board_height = self.height
@@ -85,7 +88,7 @@ class GameRoom:
     def get_player_num(self, sid):
         return next(x['num'] for x in self.players_info if x['sid'] == sid)
 
-    def add_human_user(self, sid):
+    def add_user(self, sid):
         if len(self.players_sid) < self.n_players:
             self.players_info.append({'sid': sid,
                                      'num': [num for num in list(range(self.n_players)) if num not in [player['num'] for player in self.players_info]][0]
@@ -93,9 +96,6 @@ class GameRoom:
             self.players_sid.append(sid)
         else:
             self.spectators_sid.append(sid)
-
-    #def add_agent_user(self):
-        #self
 
     def remove_user(self, sid):
         if self.is_player(sid):
@@ -123,27 +123,9 @@ class GameRoom:
             data['player_num'] = self.get_player_num(sid)
             print('player num', data['player_num'])
         if winner != -1:
+            print('game finished')
             self.finished = True
             data['winner'] = int(winner)
             data['finished'] = self.finished
 
         return data
-
-
-
-
-    # def get_user(self):
-
-
-
-
-
-
-
-
-
-
-
-
-
-

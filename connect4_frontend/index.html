@@ -33,7 +33,7 @@
     var spectator_mode = false;
     var turn_player = 0;
     var init = true;
-    var games_in_row = 10
+    var games_in_row = 5
 
     function my_turn(){
       return (turn_player == my_num)
@@ -109,10 +109,10 @@
         console.log('drawing board');
         init = false;
       //}
-      // draw_matrix(info_obj.matrix, x_left, x_right, y_top, y_bottom)
+      draw_matrix(info_obj.matrix, x_left, x_padding, y_top, y_padding, radius)
     }
 
-    function draw_matrix(matrix, x_left, x_right, y_top, y_bottom, radius) {
+    function draw_matrix(matrix, x_left, x_padding, y_top, y_padding, radius) {
       console.log('drawing matrix')
       // matrix_items.removeChildren();
       for (i = 0; i < matrix.length; i++) {
@@ -121,8 +121,8 @@
           if (matrix[i][j] != -1)
           {
             var circlePath = new paper.Path.Circle({
-              center: [150 + i * 100, 150 + j * 100],
-              radius: 48
+              center: [x_left + i * (radius * 2 + x_padding * 2), y_top + j * (radius * 2 + y_padding * 2)],
+              radius: radius - 5
             });
             if (matrix[i][j] == 0) {
               circlePath.strokeColor = 'blue';
@@ -176,7 +176,11 @@
         return false;
       });
 
-      // setInterval(items_data_request, 1000);
+      function req_info(){
+        socket.emit('info_request')
+      }
+
+      setInterval(req_info, 1000);
     });
   </script>
 
