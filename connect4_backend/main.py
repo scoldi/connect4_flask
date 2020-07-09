@@ -1,5 +1,4 @@
 import threading
-import asyncio
 from flask import Flask, request
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
@@ -7,7 +6,7 @@ from game_logic.gamebroker import GameBroker
 
 REFRESH_RATE = 15
 
-broker = GameBroker(7, 6, 5)
+broker = GameBroker(7, 6, 5, 15)
 broker.add_agent()
 broker.add_agent()
 
@@ -50,8 +49,7 @@ def on_disconnect():
 
 if __name__ == '__main__':
     threading.Thread(target=socketio.run, args=(app, ), kwargs={'port': port}).start()
-    # asyncio.run(socketio.run(app, port))
-    broker.execute_batch()
+    broker.execute()
 
 
 

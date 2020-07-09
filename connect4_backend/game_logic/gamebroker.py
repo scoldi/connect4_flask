@@ -5,17 +5,16 @@ import time
 
 class GameBroker:
 
-    def __init__(self, x, y, n_games):
+    def __init__(self, x, y, consec_games, total_games):
         self.games = []
         self.agents = []
         self.stats = []
+        self.consec_games = consec_games
+        self.total_games = total_games
         self.x = x
         self.y = y
+        self.games_elapsed = 0
         self.turn_player = 0
-
-        for n in range(n_games):
-            game = GameRoom(self.x, self.y)
-            self.games.append(game)
 
     def resolve_game(self, game):
         while not game.finished:
@@ -23,17 +22,29 @@ class GameBroker:
             print(game.matrix)
             time.sleep(1)
         self.agents[game.turn_player].win = True
+        self.games_elapsed += 1
+        print('games_elapsed', self.games_elapsed)
 
         # losers = self.agents
         # del losers[game.winner]
         # for loser in losers:
         #     loser.learn_after_game(game)
 
-    def execute_batch(self):
-        print('execute_batch')
-        for game in self.games:
-            print('started game')
-            self.resolve_game(game)
+    def reset(self):
+        print('created games: ', min(self.consec_games, self.total_games - self.games_elapsed))
+        self.games = []
+        for n in range(min(self.consec_games, self.total_games - self.games_elapsed)):
+            game = GameRoom(self.x, self.y)
+            self.games.append(game)
+
+    def execute(self):
+        while self.games_elapsed < self.total_games:
+            self.reset()
+            for agent in self.agents:
+                self.add_user(agent.sid)
+            for game in self.games:
+                print('started game')
+                self.resolve_game(game)
 
     def get_game(self, uuid):
         return next(game for game in self.games if game.uuid == uuid)

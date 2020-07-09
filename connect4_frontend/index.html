@@ -152,6 +152,8 @@
       socket.on('room_data_response', function (str) {
         var info_obj = JSON.parse(str);
         //draw_board(info_obj);
+        paper.project.activeLayer.removeChildren();
+        paper.view.draw();
         draw_all_boards(info_obj, games_in_row, canvas.width);
         if ('player_num' in info_obj) {
           my_num = info_obj.player_num
@@ -193,9 +195,6 @@
 
 <canvas id="board_canvas" resize stats></canvas>
 
-<!-- <input type="text" id="test_text"/>
-<input type="button" id="test_btn"/>
--->
 <script src="https://www.google-analytics.com/analytics.js" async></script>
 </body>
 

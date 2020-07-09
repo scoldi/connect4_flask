@@ -38,7 +38,6 @@ class GameRoom:
             self.matrix[column][res] = player_num
             self.turn_num = self.turn_num + 1
             self.turn_player = self.turn_num % 2
-            print(self.matrix)
             return True
         except (InvalidTurnError, ValueError) as e:
             return False
@@ -86,6 +85,8 @@ class GameRoom:
         return -1
 
     def get_player_num(self, sid):
+        print(sid)
+        print(self.players_info)
         return next(x['num'] for x in self.players_info if x['sid'] == sid)
 
     def add_user(self, sid):
@@ -123,7 +124,6 @@ class GameRoom:
             data['player_num'] = self.get_player_num(sid)
             print('player num', data['player_num'])
         if winner != -1:
-            print('game finished')
             self.finished = True
             data['winner'] = int(winner)
             data['finished'] = self.finished
